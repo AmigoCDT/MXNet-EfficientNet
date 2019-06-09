@@ -5,7 +5,7 @@ from mxnet.gluon import nn
 
 
 class EfficientNet(nn.HybridBlock):
-    def __init__(self, width_coeff=1.0, depth_coeff=1.0, dropout_rate=0.0, scale=1, se_ratio=2, num_classes=256):
+    def __init__(self, width_coeff=1.0, depth_coeff=1.0, dropout_rate=0.0, scale=1, se_ratio=0.25, num_classes=256):
         super(EfficientNet, self).__init__()
         channels = [32, 16, 24, 40, 80, 112, 192, 320, 1280]
         expands = [1, 6, 6, 6, 6, 6, 6]

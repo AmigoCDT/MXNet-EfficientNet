@@ -30,13 +30,13 @@ class AdaptiveAvgPool2D(nn.HybridBlock):
 
 
 class SEModule(nn.HybridBlock):
-    def __init__(self, channel, reduction=2):
+    def __init__(self, channel, se_ratio=0.25):
         super(SEModule, self).__init__()
         # self.avg_pool = nn.contrib.AdaptiveAvgPooling2D()
         self.fc = nn.HybridSequential()
-        self.fc.add(nn.Dense(channel//reduction, use_bias=False),
+        self.fc.add(nn.Dense(int(channel*se_ratio), use_bias=False),
                     nn.Activation("relu"),
-                    nn.Dense(channel, use_bias=False),
+                    nn.Dense(int(channel), use_bias=False),
                     nn.Activation("sigmoid")) # in mobilenet-v3, this is Hsigmoid
     
     def hybrid_forward(self, F, x):
@@ -77,7 +77,7 @@ def conv_1x1_bn(channels, groups=1, activation=nn.Activation('relu')):
 
 
 class BottleNeck(nn.HybridBlock):
-    def __init__(self, channel, kernel_size, stride, expand=1.0, se_ratio=1.0, res_add=True):
+    def __init__(self, channel, kernel_size, stride, expand=1.0, se_ratio=0.25, res_add=True):
         super(BottleNeck, self).__init__()
         self.add=res_add
         if expand==1.0:
