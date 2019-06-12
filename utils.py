@@ -113,13 +113,24 @@ class MBBlock(nn.HybridBlock):
         return self.out(x)
 
 
+# UpSampling Block not used
 class UpSampling(nn.HybridBlock):
-    def __init__(self, scale=1):
+    def __init__(self, scale=1.0):
         super(UpSampling, self).__init__()
         self.scale = scale
     
     def hybrid_forward(self, F, x):
         return F.UpSampling(x, scale=self.scale, sample_type='bilinear')
+
+
+# change UpSampling to ReSize
+class ReSize(nn.HybridBlock):
+    def __init__(self, scale=1.0):
+        super(ReSize, self).__init__()
+        self.scale = scale
+    
+    def hybrid_forward(self, F, x):
+        return F.contrib.BilinearResize2D(x, scale_height=self.scale, scale_width=self,scale)
 
 
 # Not Used Blocks
