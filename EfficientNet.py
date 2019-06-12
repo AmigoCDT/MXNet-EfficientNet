@@ -21,15 +21,15 @@ class EfficientNet(nn.HybridBlock):
             # Here, should do interpolation to resize input_image to resolution in "bi" mode
             # self.out.add(utils.UpSampling(scale))
             pass
-        self.out.add(nn.Conv2D(channels[0], 3, 2, padding=1, use_bias=False))
+        self.out.add(nn.Conv2D(channels[0], 3, 2, padding=1, use_bias=False, in_channels=3))
         self.out.add(nn.BatchNorm(scale=True))
         for i in range(7):
-            self.out.add(utils.MBBlock(channels[i+1], repeats[i], kernel_sizes[i], strides[i], expands[i], se_ratio))
-        self.out.add(utils.conv_1x1_bn(channels[8], nn.Swish()),
+            self.out.add(utils.MBBlock(channels[i], channels[i+1], repeats[i], kernel_sizes[i], strides[i], expands[i], se_ratio))
+        self.out.add(utils.conv_1x1_bn(channels[7], channels[8], nn.Swish()),
                     utils.AdaptiveAvgPool2D(1),
                     nn.Flatten(),
                     nn.Dropout(dropout_rate),
-                    nn.Dense(num_classes, use_bias=False),
+                    nn.Dense(num_classes, use_bias=False, in_units=channels[8]),
                     nn.BatchNorm(scale=True),
                     nn.Swish())
                     # utils.conv_1x1_bn(num_classes, nn.Swish()))
@@ -57,7 +57,7 @@ class FC(nn.HybridBlock):
 def get_symbol(model_name="b0", num_classes=512):
     print("embedding size: {}".format(num_classes))
     width_coeff, depth_coeff, input_resolution, dropout_rate = utils.params_dict[model_name]
-    net = EfficientNet(width_coeff, depth_coeff, dropout_rate, scale=input_resolution/224, num_classes=512)
+    net = EfficientNet(width_coeff, depth_coeff, dropout_rate, scale=input_resolution/224.0, num_classes=512)
     data = mx.sym.Variable(name='data')
     # data = (data-127.5)
     data = (data-127.5)*0.0078125

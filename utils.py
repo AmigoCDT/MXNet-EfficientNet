@@ -34,9 +34,9 @@ class SEModule(nn.HybridBlock):
         super(SEModule, self).__init__()
         # self.avg_pool = nn.contrib.AdaptiveAvgPooling2D()
         self.fc = nn.HybridSequential()
-        self.fc.add(nn.Dense(int(channel*se_ratio), use_bias=False),
-                    nn.Activation("relu"),
-                    nn.Dense(int(channel), use_bias=False),
+        self.fc.add(nn.Dense(int(channel*se_ratio), use_bias=False, in_units=channel),
+                    nn.Swish(),
+                    nn.Dense(int(channel), use_bias=False, in_units=int(channel*se_ratio)),
                     nn.Activation("sigmoid")) # in mobilenet-v3, this is Hsigmoid
     
     def hybrid_forward(self, F, x):
@@ -48,52 +48,43 @@ class SEModule(nn.HybridBlock):
         return x
 
 
-def conv_bn(channels, kernel_size, stride, groups=1, activation=nn.Activation('relu')):
-    out = nn.HybridSequential()
-    if groups == 1:
-        out.add(
-            nn.Conv2D(channels, kernel_size, stride, kernel_size//2, use_bias=False),
-            nn.BatchNorm(scale=True),
-            activation
-        )
-    else:
-        out.add(
-            nn.Conv2D(channels, kernel_size, stride, kernel_size//2, groups=groups, use_bias=False),
-            nn.BatchNorm(scale=True),
-            activation
-        )
-    return out
-
-
-def conv_1x1_bn(channels, groups=1, activation=nn.Activation('relu')):
+def conv_bn(in_channel, channels, kernel_size, stride, groups=1, activation=nn.Activation('relu')):
     out = nn.HybridSequential()
     out.add(
-        nn.Conv2D(channels, 1, 1, 0, use_bias=False),
+        nn.Conv2D(channels, kernel_size, stride, kernel_size//2, groups=groups, use_bias=False, in_channels=in_channel),
         nn.BatchNorm(scale=True),
         activation
     )
     return out
 
 
+def conv_1x1_bn(in_channel, channel, activation=nn.Activation('relu')):
+    out = nn.HybridSequential()
+    out.add(
+        nn.Conv2D(channel, 1, 1, 0, use_bias=False, in_channels=in_channel),
+        nn.BatchNorm(scale=True),
+        activation
+    )
+    return out
+
 
 class BottleNeck(nn.HybridBlock):
-    def __init__(self, channel, kernel_size, stride, expand=1.0, se_ratio=0.25, res_add=True):
+    def __init__(self, in_channel, channel, kernel_size, stride, expand=1.0, se_ratio=0.25, res_add=True):
         super(BottleNeck, self).__init__()
         self.add=res_add
+        self.out = nn.HybridSequential()
         if expand==1.0:
-            self.out = nn.HybridSequential()
             self.out.add(
-                conv_bn(channel, kernel_size, stride, groups=channel, activation=nn.Swish()),
-                SEModule(channel, se_ratio),
-                nn.BatchNorm(scale=False)
+                conv_bn(in_channel, in_channel, kernel_size, stride, groups=in_channel, activation=nn.Swish()),
+                SEModule(in_channel, se_ratio),
+                conv_1x1_bn(in_channel, channel, activation=nn.Swish())
             )
         else:
-            self.out = nn.HybridSequential()
             self.out.add(
-                conv_1x1_bn(channel*expand, activation=nn.Swish()),
-                conv_bn(channel*expand, kernel_size, stride, groups=channel*expand, activation=nn.Swish()),
+                conv_1x1_bn(in_channel, channel*expand, activation=nn.Swish()),
+                conv_bn(channel*expand, channel*expand, kernel_size, stride, groups=channel*expand, activation=nn.Swish()),
                 SEModule(channel*expand, se_ratio),
-                conv_1x1_bn(channel, activation=nn.Swish())
+                conv_1x1_bn(channel*expand, channel, activation=nn.Swish())
             )
     
     def hybrid_forward(self, F, x):
@@ -102,10 +93,10 @@ class BottleNeck(nn.HybridBlock):
 
 
 class MBBlock(nn.HybridBlock):
-    def __init__(self, channel, repeat_num, kernel_size, stride, expand, se_ratio):
+    def __init__(self, in_channel, channel, repeat_num, kernel_size, stride, expand, se_ratio):
         super(MBBlock, self).__init__()
-        layers=[BottleNeck(channel, kernel_size, stride, expand, se_ratio, False)]
-        layers += [BottleNeck(channel, kernel_size, 1, expand, se_ratio) for _ in range(1, repeat_num)]
+        layers=[BottleNeck(in_channel, channel, kernel_size, stride, expand, se_ratio, False)]
+        layers += [BottleNeck(channel, channel, kernel_size, 1, expand, se_ratio) for _ in range(1, repeat_num)]
         self.out = nn.HybridSequential()
         self.out.add(*layers)
     
@@ -130,7 +121,7 @@ class ReSize(nn.HybridBlock):
         self.scale = scale
     
     def hybrid_forward(self, F, x):
-        return F.contrib.BilinearResize2D(x, scale_height=self.scale, scale_width=self,scale)
+        return F.contrib.BilinearResize2D(x, scale_height=self.scale, scale_width=self.scale)
 
 
 # Not Used Blocks
