@@ -18,7 +18,9 @@ class EfficientNet(nn.HybridBlock):
 
         self.out = nn.HybridSequential()
         if scale!=1:
-            self.out.add(utils.UpSampling(scale))
+            # Here, should do interpolation to resize input_image to resolution in "bi" mode
+            # self.out.add(utils.UpSampling(scale))
+            pass
         self.out.add(nn.Conv2D(channels[0], 3, 2, padding=1, use_bias=False))
         self.out.add(nn.BatchNorm(scale=True))
         for i in range(7):
