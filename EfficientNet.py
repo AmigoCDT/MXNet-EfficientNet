@@ -26,7 +26,8 @@ class EfficientNet(nn.HybridBlock):
         for i in range(7):
             self.out.add(utils.MBBlock(channels[i], channels[i+1], repeats[i], kernel_sizes[i], strides[i], expands[i], se_ratio))
         self.out.add(utils.conv_1x1_bn(channels[7], channels[8], nn.Swish()),
-                    utils.AdaptiveAvgPool2D(1),
+                    # utils.AdaptiveAvgPool2D(1),
+                    nn.GlobalAvgPool2D(),
                     nn.Flatten(),
                     nn.Dropout(dropout_rate),
                     nn.Dense(num_classes, use_bias=False, in_units=channels[8]),
